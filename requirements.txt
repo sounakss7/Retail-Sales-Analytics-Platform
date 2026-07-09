@@ -2,3 +2,4 @@ pandas
 pytest
 matplotlib
 seaborn
+psycopg2-binary
