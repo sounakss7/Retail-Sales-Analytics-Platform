@@ -1,5 +1,5 @@
 -- 01_schema.sql
--- Creates the core retail_orders table used by the analytics layer.
+-- Creates the core retail_orders table used by the BI layer.
 
 CREATE TABLE IF NOT EXISTS retail_orders (
     row_id INTEGER PRIMARY KEY,

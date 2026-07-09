@@ -1,3 +1,6 @@
+-- schema.sql
+-- Core retail_orders table for the analytics platform.
+
 CREATE TABLE IF NOT EXISTS retail_orders (
     row_id INTEGER PRIMARY KEY,
     order_id TEXT NOT NULL,
@@ -26,6 +29,9 @@ CREATE TABLE IF NOT EXISTS retail_orders (
     order_month_name TEXT,
     order_quarter INTEGER,
     revenue_per_unit NUMERIC(12, 2),
+    discount_percentage NUMERIC(6, 2),
     discount_band TEXT,
+    shipping_days INTEGER,
+    weekend_flag BOOLEAN,
     profitability_flag BOOLEAN
 );
