@@ -2,11 +2,11 @@
 
 [![ETL Pipeline](https://img.shields.io/badge/ETL-Pandas%20%7C%20Postgres-blue.svg)](#etl-pipeline-workflow)
 [![SQL Views](https://img.shields.io/badge/SQL-PostgreSQL-orange.svg)](#sql-analytical-layer)
-[![Power BI](https://img.shields.io/badge/Power_BI-Dashboard-yellow.svg)](#power-bi-dashboards)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red.svg)](#streamlit-dashboard)
 [![Tests](https://img.shields.io/badge/Tests-pytest-green.svg)](#testing-and-verification)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An enterprise-ready, end-to-end Retail Analytics and Business Intelligence (BI) platform designed around the US Superstore sales dataset. This solution implements a robust data processing pipeline (cleaning, type casting, duplicate removal), constructs advanced business features, loads data into an optimized PostgreSQL relational schema, and provides pre-aggregated reporting views to drive interactive Power BI dashboard analytics.
+An enterprise-ready, end-to-end Retail Analytics and Business Intelligence (BI) platform designed around the US Superstore sales dataset. This solution implements a robust data processing pipeline (cleaning, type casting, duplicate removal), constructs advanced business features, loads data into an optimized PostgreSQL relational schema, and provides a native Python interactive **Streamlit Dashboard** to drive deep business insight.
 
 ---
 
@@ -18,7 +18,7 @@ This platform solves these problems by:
 1. **Consolidating Transaction Records**: Processing raw transactional sales records into a structured data warehouse.
 2. **Exposing Profitability Metrics**: Identifying loss-making products, high-discount bands, and low-margin customer segments.
 3. **Optimizing Transit Times**: Tracking shipping delays by shipping mode to locate distribution bottlenecks.
-4. **Providing SQL Views for BI**: Pre-aggregating complex calculations (moving averages, running totals, and ranks) in the database layer to ensure responsive BI dashboards.
+4. **Providing an Interactive UI**: Displaying dynamic KPIs, monthly trends with moving averages, segment performance, and shipping logistics in an easy-to-use web interface.
 
 ---
 
@@ -27,7 +27,7 @@ This platform solves these problems by:
 * **Data Engineering & ETL**: Python 3, Pandas, NumPy, python-dotenv
 * **Database Layer**: PostgreSQL, `psycopg2-binary` for batch loads
 * **SQL Analytics**: PostgreSQL Views, CTEs, Window Functions, Indexes
-* **BI & Visualization**: Power BI (DAX, custom reporting views)
+* **BI & Visualization**: Streamlit (Python web dashboard framework)
 * **Testing**: pytest
 
 ---
@@ -42,8 +42,9 @@ graph TD
     B -->|cleaning.py & feature_engineering.py| C(data/processed/superstore_clean.csv)
     C -->|load_to_postgres.py| D[(PostgreSQL database)]
     D -->|sql/analytics/01_schema.sql & 02_indexes.sql| E[Optimized tables & indexes]
-    E -->|sql/analytics/03_views.sql| F[7 pre-calculated BI views]
-    F -->|Power BI Import Mode| G[Executive & Sales Dashboards]
+    E -->|sql/analytics/03_views.sql| F[7 pre-calculated SQL views]
+    C -->|Local Fallback Mode| H[Streamlit Dashboard app.py]
+    D -->|Database Mode| H
 ```
 
 ---
@@ -75,8 +76,7 @@ Retail-Sales-Analytics-Platform/
 ├── tests/
 │   ├── test_cleaning.py               # Unit tests for loading and clean checks
 │   └── test_postgres_loader.py        # Unit tests for postgres alignment
-├── powerbi/
-│   └── README.md                      # DAX measures, visual page layouts
+├── app.py                             # Interactive Streamlit application
 ├── requirements.txt                   # Project dependencies
 ├── pytest.ini                         # Pytest configuration
 ├── README.md                          # Main repository page (highly detailed)
@@ -94,7 +94,7 @@ Retail-Sales-Analytics-Platform/
 - **Validation**: Identifies invalid metrics (negative sales/quantities, discounts outside of [0, 1]) and aggregates anomalies in a data quality report.
 
 ### 2. Custom Business Features (`feature_engineering.py`)
-To enrich downstream BI reports, the pipeline constructs several indicators:
+To enrich downstream dashboards, the pipeline constructs several indicators:
 * **`shipping_days`**: The exact transit time (`ship_date` - `order_date`) clipped to non-negative values.
 * **`profit_margin`**: Profit divided by sales, representing transaction profitability.
 * **`revenue_per_unit`**: Unit rate of transaction (`sales` / `quantity`).
@@ -110,7 +110,7 @@ To enrich downstream BI reports, the pipeline constructs several indicators:
 Our SQL Layer features optimized structures, indexes, and reusable views:
 * **`01_schema.sql`**: Table schema for the analytical table `retail_orders`.
 * **`02_indexes.sql`**: Indexes created on date, region, categories, segments, shipping modes, and year-months to speed up analytical filtering.
-* **`03_views.sql`**: Exposes 7 pre-calculated views for Power BI connection:
+* **`03_views.sql`**: Exposes 7 pre-calculated views for analytical queries:
   - `vw_sales_summary`: Flat layout with running window totals.
   - `vw_monthly_sales`: Aggregated monthly sales, running totals, and moving averages.
   - `vw_region_performance`: Sales/profits metrics and rankings grouped by region.
@@ -128,27 +128,24 @@ Our SQL Layer features optimized structures, indexes, and reusable views:
 
 ---
 
-## 📊 Power BI Dashboards
+## 📊 Streamlit Dashboard
 
-Our dashboard specsheet ([powerbi/README.md](file:///c:/Users/souna/.antigravity/Retail-Sales-Analytics-Platform/powerbi/README.md)) outlines **4 dedicated pages**:
-1. **Executive Dashboard**: Top metrics (Total Sales, Total Profit, Margin, Total Orders, Average Order Value), regional sales rankings, and Category profit margins.
-2. **Sales Dashboard**: Monthly sales trends, running totals, moving averages, and discount band impacts.
-3. **Customer Dashboard**: Customer segment breakdowns, top customer matrices, and profitability percentages.
-4. **Product Dashboard**: Profit/sales rankings, sub-category performance grids, and shipping delay averages.
+The web application [app.py](file:///c:/Users/souna/.antigravity/Retail-Sales-Analytics-Platform/app.py) provides a modern dashboard interface featuring **4 tabs**:
+1. **Sales & Profit Trends**: Visual line charts tracking monthly sales, bar charts showing regional revenues vs. profits, and a state-level performance grid.
+2. **Customer Analytics**: Breaks down sales share and profit margins by customer segment, showing a top 10 customers performance table.
+3. **Product Insights**: Sales per sub-category bar charts, discount band profit impact analysis, and top 15 most profitable products.
+4. **Logistics & Shipping**: Evaluates transit days by shipping mode and shipping count distributions.
 
-### Essential DAX Measures
-* **Total Sales**:
-  ```dax
-  Total Sales = SUM(vw_sales_summary[sales])
-  ```
-* **Profit Margin**:
-  ```dax
-  Profit Margin = DIVIDE([Total Profit], [Total Sales], 0)
-  ```
-* **Average Order Value**:
-  ```dax
-  Average Order Value = DIVIDE([Total Sales], [Total Orders], 0)
-  ```
+### How to Run the Dashboard
+Ensure all package requirements are installed:
+```bash
+pip install -r requirements.txt
+```
+To run the dashboard server locally:
+```bash
+streamlit run app.py
+```
+This will automatically launch the app in your default browser at `http://localhost:8501`.
 
 ---
 
@@ -162,32 +159,3 @@ To execute the test suite:
 ```bash
 python -m pytest
 ```
-
----
-
-## 🚀 How to Run the Project
-
-### 1. Ingestion & Pre-processing
-Configure a local `.env` file in the root of the project:
-```bash
-DATABASE_URL=postgresql://username:password@hostname:port/database_name?sslmode=require
-```
-
-Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-Run the pipeline and load the processed data into PostgreSQL:
-```bash
-python scripts/load_to_postgres.py --csv data/raw/superstore.csv
-```
-
-### 2. Database Migrations
-Apply database indexes and reporting views manually:
-```bash
-# Connect using psql and run:
-psql -d database_name -f sql/analytics/02_indexes.sql
-psql -d database_name -f sql/analytics/03_views.sql
-```
-Once run, connect Power BI directly to the database views to begin visualizing your dashboards!
