@@ -5,6 +5,8 @@ import numpy as np
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+from collections import Counter
+from itertools import combinations
 
 # Set page configuration
 st.set_page_config(
@@ -163,7 +165,14 @@ kpi5.metric("Avg Order Value", f"${avg_order_value:,.2f}")
 st.markdown("---")
 
 # Main Visualization Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Sales & Profit Trends", "👥 Segment Contribution", "📦 Product Performance", "🚚 Shipping Logistics"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📈 Sales & Profit Trends", 
+    "👥 Segment Contribution", 
+    "📦 Product Performance", 
+    "🚚 Shipping Logistics",
+    "🎯 Customer RFM Segments",
+    "🧠 Basket & Advanced Insights"
+])
 
 with tab1:
     st.header("Sales and Profit Trends")
@@ -294,3 +303,123 @@ with tab4:
         "Total Revenue ($)": "${:,.2f}",
         "Total Profit ($)": "${:,.2f}"
     }), use_container_width=True)
+
+with tab5:
+    st.header("👥 Advanced RFM Customer Segmentation")
+    st.markdown("""
+    **RFM (Recency, Frequency, Monetary)** analysis classifies customers into value categories based on:
+    *   **Recency (R)**: Days elapsed since their last purchase date.
+    *   **Frequency (F)**: Total number of unique orders placed.
+    *   **Monetary (M)**: Total transaction revenue generated.
+    """)
+    
+    # Calculate RFM values
+    max_date = filtered_df["order_date"].max()
+    rfm = filtered_df.groupby(["customer_id", "customer_name", "segment"]).agg(
+        recency=("order_date", lambda x: (max_date - x.max()).days),
+        frequency=("order_id", "nunique"),
+        monetary=("sales", "sum")
+    ).reset_index()
+    
+    # Generate scores from 1 to 5 (using quantile ranks)
+    rfm["r_score"] = pd.qcut(rfm["recency"].rank(method="first"), 5, labels=[5, 4, 3, 2, 1]).astype(int)
+    rfm["f_score"] = pd.qcut(rfm["frequency"].rank(method="first"), 5, labels=[1, 2, 3, 4, 5]).astype(int)
+    rfm["m_score"] = pd.qcut(rfm["monetary"].rank(method="first"), 5, labels=[1, 2, 3, 4, 5]).astype(int)
+    
+    # RFM score classification function
+    def classify_rfm_segment(row):
+        r, f, m = row["r_score"], row["f_score"], row["m_score"]
+        if r >= 4 and f >= 4:
+            return "Champions (Highly Active & Loyal)"
+        elif f >= 3 and m >= 3:
+            return "Loyal Customers (Regular Buyers)"
+        elif r <= 2 and f >= 3:
+            return "At Risk (Frequent Buyers, Slipping)"
+        elif r <= 2:
+            return "Hibernating / Lost"
+        else:
+            return "New / Promising Customers"
+            
+    rfm["rfm_segment"] = rfm.apply(classify_rfm_segment, axis=1)
+    
+    # Visual Layout
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Distribution of Customer Segments")
+        segment_counts = rfm["rfm_segment"].value_counts().reset_index()
+        segment_counts.columns = ["RFM Segment", "Customer Count"]
+        st.bar_chart(segment_counts, x="RFM Segment", y="Customer Count")
+        
+    with col2:
+        st.subheader("RFM Segment Financial Metrics")
+        segment_financials = rfm.groupby("rfm_segment").agg(
+            total_customers=("customer_id", "count"),
+            avg_recency=("recency", "mean"),
+            avg_frequency=("frequency", "mean"),
+            total_revenue=("monetary", "sum")
+        ).reset_index()
+        segment_financials.columns = ["RFM Segment", "Total Customers", "Avg Recency (Days)", "Avg Order Frequency", "Total Revenue ($)"]
+        st.dataframe(segment_financials.style.format({
+            "Total Customers": "{:,}",
+            "Avg Recency (Days)": "{:.1f} days",
+            "Avg Order Frequency": "{:.1f} times",
+            "Total Revenue ($)": "${:,.2f}"
+        }), use_container_width=True)
+        
+    st.subheader("Customer Level RFM Detail Grid")
+    rfm_display = rfm[["customer_name", "segment", "recency", "frequency", "monetary", "rfm_segment"]].sort_values(by="monetary", ascending=False)
+    rfm_display.columns = ["Customer Name", "Segment", "Recency (Days)", "Frequency (Orders)", "Monetary Revenue ($)", "Assigned RFM Segment"]
+    st.dataframe(rfm_display.style.format({
+        "Recency (Days)": "{:,}",
+        "Frequency (Orders)": "{:,}",
+        "Monetary Revenue ($)": "${:,.2f}"
+    }), use_container_width=True)
+
+with tab6:
+    st.header("🧠 Market Basket & Advanced Analytics Insights")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Month-on-Month (MoM) Revenue Growth Rate (%)")
+        monthly_sales_growth = monthly_sales.copy()
+        monthly_sales_growth["mom_growth_%"] = monthly_sales_growth["revenue"].pct_change() * 100
+        monthly_sales_growth["mom_growth_%"] = monthly_sales_growth["mom_growth_%"].fillna(0).round(2)
+        st.line_chart(monthly_sales_growth, x="month_year", y="mom_growth_%")
+        
+    with col2:
+        st.subheader("Discount vs. Profit Margin Correlation")
+        # Sample or aggregate to avoid cluttering scatter chart
+        corr_df = filtered_df.groupby("discount_percentage").agg(
+            avg_margin=("profit_margin", "mean"),
+            orders=("order_id", "nunique")
+        ).reset_index()
+        corr_df.columns = ["Discount (%)", "Average Profit Margin", "Orders Count"]
+        st.scatter_chart(corr_df, x="Discount (%)", y="Average Profit Margin", size="Orders Count")
+
+    st.subheader("🛒 Market Basket Analysis: Top Product Co-occurrences")
+    st.markdown("""
+    This analysis identifies which product **sub-categories are most frequently ordered together** in the same transaction order ID.
+    """)
+    
+    # Perform Co-occurrence counting
+    # Get sub-categories per order
+    order_items = filtered_df.groupby("order_id")["sub_category"].apply(list).reset_index()
+    # Filter for orders with multiple items
+    multi_items = order_items[order_items["sub_category"].apply(len) > 1]
+    
+    pairs = Counter()
+    for items in multi_items["sub_category"]:
+        # Distinct items sorted to avoid counting (A,B) and (B,A) separately
+        unique_items = sorted(list(set(items)))
+        for combo in combinations(unique_items, 2):
+            pairs[combo] += 1
+            
+    if pairs:
+        top_pairs = pd.DataFrame(pairs.most_common(15), columns=["sub_category_pair", "frequency"])
+        top_pairs["sub_category_pair"] = top_pairs["sub_category_pair"].apply(lambda x: f"{x[0]} & {x[1]}")
+        top_pairs.columns = ["Product Pair Combination", "Order Co-occurrence Count"]
+        st.dataframe(top_pairs.style.format({
+            "Order Co-occurrence Count": "{:,}"
+        }), use_container_width=True)
+    else:
+        st.info("No multi-product orders detected in the filtered subset to analyze co-occurrences.")
