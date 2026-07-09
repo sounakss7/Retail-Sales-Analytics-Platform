@@ -1,0 +1,37 @@
+-- 01_schema.sql
+-- Creates the core retail_orders table used by the analytics layer.
+
+CREATE TABLE IF NOT EXISTS retail_orders (
+    row_id INTEGER PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    order_date DATE,
+    ship_date DATE,
+    ship_mode TEXT,
+    customer_id TEXT,
+    customer_name TEXT,
+    segment TEXT,
+    country TEXT,
+    city TEXT,
+    state TEXT,
+    postal_code INTEGER,
+    region TEXT,
+    product_id TEXT,
+    category TEXT,
+    sub_category TEXT,
+    product_name TEXT,
+    sales NUMERIC(12, 2),
+    quantity INTEGER,
+    discount NUMERIC(5, 2),
+    profit NUMERIC(12, 2),
+    profit_margin NUMERIC(6, 4),
+    order_year INTEGER,
+    order_month INTEGER,
+    order_month_name TEXT,
+    order_quarter INTEGER,
+    revenue_per_unit NUMERIC(12, 2),
+    discount_percentage NUMERIC(6, 2),
+    discount_band TEXT,
+    shipping_days INTEGER,
+    weekend_flag BOOLEAN,
+    profitability_flag BOOLEAN
+);
