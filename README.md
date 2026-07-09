@@ -1,74 +1,193 @@
 # Retail Sales Analytics Platform
 
-## Project Overview
-This repository implements an end-to-end retail analytics workflow for the Superstore sales dataset. The project is structured as a portfolio-ready data engineering and analytics solution using Python, pandas, SQL, and Power BI.
+[![ETL Pipeline](https://img.shields.io/badge/ETL-Pandas%20%7C%20Postgres-blue.svg)](#etl-pipeline-workflow)
+[![SQL Views](https://img.shields.io/badge/SQL-PostgreSQL-orange.svg)](#sql-analytical-layer)
+[![Power BI](https://img.shields.io/badge/Power_BI-Dashboard-yellow.svg)](#power-bi-dashboards)
+[![Tests](https://img.shields.io/badge/Tests-pytest-green.svg)](#testing-and-verification)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Architecture
-1. Ingest the raw CSV from the data folder.
-2. Clean and validate the dataset.
-3. Engineer business-oriented features.
-4. Export a processed dataset for downstream analytics.
-5. Prepare SQL and BI assets for reporting.
+An enterprise-ready, end-to-end Retail Analytics and Business Intelligence (BI) platform designed around the US Superstore sales dataset. This solution implements a robust data processing pipeline (cleaning, type casting, duplicate removal), constructs advanced business features, loads data into an optimized PostgreSQL relational schema, and provides pre-aggregated reporting views to drive interactive Power BI dashboard analytics.
 
-## Folder Structure
-- data/raw/superstore.csv: raw dataset
-- data/processed/superstore_clean.csv: cleaned and enriched output
-- src/retail_analytics/: reusable Python modules for cleaning, feature engineering, and orchestration
-- sql/: PostgreSQL schema and analytics queries
-- notebooks/: exploratory analysis notebooks
-- docs/: architecture and design notes
-- powerbi/: Power BI assets
-- tests/: automated validation tests
+---
 
-## Tech Stack
-- Python
-- pandas
-- pytest
-- PostgreSQL (planned)
-- Power BI (planned)
+## 📌 Business Problem
 
-## Installation
-1. Create a virtual environment.
-2. Install dependencies: pip install -r requirements.txt
-3. Run the pipeline: python -m src.retail_analytics.pipeline
+In competitive retail spaces, managers need to understand sales performance, profitability trends, customer behaviors, and shipping efficiencies across product categories and regions. 
 
-## Workflow
-- Load the raw CSV.
-- Validate missing values, duplicates, ranges, and dates.
-- Generate a data quality report.
-- Produce enriched features such as shipping days, profit margin, order month, quarter, and weekend flags.
+This platform solves these problems by:
+1. **Consolidating Transaction Records**: Processing raw transactional sales records into a structured data warehouse.
+2. **Exposing Profitability Metrics**: Identifying loss-making products, high-discount bands, and low-margin customer segments.
+3. **Optimizing Transit Times**: Tracking shipping delays by shipping mode to locate distribution bottlenecks.
+4. **Providing SQL Views for BI**: Pre-aggregating complex calculations (moving averages, running totals, and ranks) in the database layer to ensure responsive BI dashboards.
 
-## Data Quality Notes
-- The dataset is loaded with Latin-1 encoding.
-- Duplicate rows are removed during preprocessing.
-- Numeric and datetime columns are type-validated.
-- Additional features support downstream business reporting.
+---
 
-## Next Steps
-- Add PostgreSQL loading and SQL-based analytics.
-- Build the Power BI dashboard.
-- Extend the notebooks with deeper EDA and visual analysis.
+## 🛠️ Tech Stack
 
-## PostgreSQL Loading
-A helper script is available for preparing the processed dataframe for import into PostgreSQL.
+* **Data Engineering & ETL**: Python 3, Pandas, NumPy, python-dotenv
+* **Database Layer**: PostgreSQL, `psycopg2-binary` for batch loads
+* **SQL Analytics**: PostgreSQL Views, CTEs, Window Functions, Indexes
+* **BI & Visualization**: Power BI (DAX, custom reporting views)
+* **Testing**: pytest
 
-Run:
-- python scripts/load_to_postgres.py --csv data/raw/superstore.csv
+---
 
-If you provide a PostgreSQL connection string, the script will attempt to connect and load the data into a table named retail_orders.
+## 📐 System Architecture
 
-## SQL Analytics Layer
-The SQL layer is organized into separate files for schema, indexes, reusable views, and business queries:
-- sql/analytics/01_schema.sql
-- sql/analytics/02_indexes.sql
-- sql/analytics/03_views.sql
-- sql/analytics/04_business_queries.sql
+The platform follows a decoupled three-tier analytics architecture:
 
-Power BI should consume the views rather than the raw retail_orders table directly.
+```mermaid
+graph TD
+    A[Superstore.csv] -->|ETL Ingestion| B(data/raw/)
+    B -->|cleaning.py & feature_engineering.py| C(data/processed/superstore_clean.csv)
+    C -->|load_to_postgres.py| D[(PostgreSQL database)]
+    D -->|sql/analytics/01_schema.sql & 02_indexes.sql| E[Optimized tables & indexes]
+    E -->|sql/analytics/03_views.sql| F[7 pre-calculated BI views]
+    F -->|Power BI Import Mode| G[Executive & Sales Dashboards]
+```
 
-## Power BI Dashboard Plan
-A dashboard blueprint is available in powerbi/README.md with four proposed pages:
-- Executive Dashboard
-- Sales Dashboard
-- Customer Dashboard
-- Product Dashboard
+---
+
+## 📁 Repository Directory Structure
+
+```
+Retail-Sales-Analytics-Platform/
+├── data/
+│   ├── raw/                           # Raw transactional CSV (Superstore)
+│   └── processed/                     # Cleaned & feature-engineered CSV
+├── notebooks/
+│   └── (exploratory analyses and Jupyter notes)
+├── src/
+│   └── retail_analytics/
+│       ├── __init__.py
+│       ├── cleaning.py                # Type casting, duplicate removal, naming cleanup
+│       ├── feature_engineering.py     # Custom business bins, profit indicators, & rates
+│       ├── pipeline.py                # Main ETL coordinator
+│       └── postgres_loader.py         # DataFrame schema alignment & DDL helpers
+├── sql/
+│   └── analytics/
+│       ├── 01_schema.sql              # Physical table DDL
+│       ├── 02_indexes.sql             # SQL index optimization
+│       ├── 03_views.sql               # 7 pre-calculated analytical views
+│       └── 04_business_queries.sql    # Specific SQL answers to business questions
+├── scripts/
+│   └── load_to_postgres.py            # Executable script running ETL and PG migration
+├── tests/
+│   ├── test_cleaning.py               # Unit tests for loading and clean checks
+│   └── test_postgres_loader.py        # Unit tests for postgres alignment
+├── powerbi/
+│   └── README.md                      # DAX measures, visual page layouts
+├── requirements.txt                   # Project dependencies
+├── pytest.ini                         # Pytest configuration
+├── README.md                          # Main repository page (highly detailed)
+└── .gitignore                         # Git exclusion rules
+```
+
+---
+
+## 🔄 ETL & Feature Engineering
+
+### 1. Data Cleaning (`cleaning.py`)
+- **Duplicates**: Deduplicates rows based on all fields except `row_id` to maintain transaction integrity.
+- **Type Coercion**: Standardizes numerical variables (`sales`, `quantity`, `discount`, `profit`, `postal_code`) and date columns (`order_date`, `ship_date`).
+- **Formatting**: Normalizes column names to standard `lower_snake_case`.
+- **Validation**: Identifies invalid metrics (negative sales/quantities, discounts outside of [0, 1]) and aggregates anomalies in a data quality report.
+
+### 2. Custom Business Features (`feature_engineering.py`)
+To enrich downstream BI reports, the pipeline constructs several indicators:
+* **`shipping_days`**: The exact transit time (`ship_date` - `order_date`) clipped to non-negative values.
+* **`profit_margin`**: Profit divided by sales, representing transaction profitability.
+* **`revenue_per_unit`**: Unit rate of transaction (`sales` / `quantity`).
+* **`discount_percentage`**: Standardized discount rate (`discount` * 100).
+* **`discount_band`**: Binned discount category (`low` for <= 10%, `medium` for <= 20%, `high` for <= 30%, `very_high` for > 30%).
+* **`profitability_flag`**: Boolean flag indicating whether the transaction generated profit (`profit` > 0).
+* **Date Grouping Variables**: Extracting `order_year`, `order_month`, `order_month_name`, `order_quarter`, and a `weekend_flag`.
+
+---
+
+## 🗄️ SQL Analytical Layer
+
+Our SQL Layer features optimized structures, indexes, and reusable views:
+* **`01_schema.sql`**: Table schema for the analytical table `retail_orders`.
+* **`02_indexes.sql`**: Indexes created on date, region, categories, segments, shipping modes, and year-months to speed up analytical filtering.
+* **`03_views.sql`**: Exposes 7 pre-calculated views for Power BI connection:
+  - `vw_sales_summary`: Flat layout with running window totals.
+  - `vw_monthly_sales`: Aggregated monthly sales, running totals, and moving averages.
+  - `vw_region_performance`: Sales/profits metrics and rankings grouped by region.
+  - `vw_category_performance`: Sales/profits metrics and rankings grouped by product category.
+  - `vw_customer_summary`: Aggregated customer transaction details and ranking based on sales.
+  - `vw_product_performance`: Sales and margins grouped by product name.
+  - `vw_shipping_analysis`: Groups shipping performance and averages transit days.
+
+### Example business queries solved in `04_business_queries.sql`
+- Monthly sales trends with running totals.
+- Sales by region and product category.
+- Customer segmentations and top-paying customer rankings.
+- Shipping performance analysis binned by efficiency.
+- Profit margins and revenue impact across discount bands.
+
+---
+
+## 📊 Power BI Dashboards
+
+Our dashboard specsheet ([powerbi/README.md](file:///c:/Users/souna/.antigravity/Retail-Sales-Analytics-Platform/powerbi/README.md)) outlines **4 dedicated pages**:
+1. **Executive Dashboard**: Top metrics (Total Sales, Total Profit, Margin, Total Orders, Average Order Value), regional sales rankings, and Category profit margins.
+2. **Sales Dashboard**: Monthly sales trends, running totals, moving averages, and discount band impacts.
+3. **Customer Dashboard**: Customer segment breakdowns, top customer matrices, and profitability percentages.
+4. **Product Dashboard**: Profit/sales rankings, sub-category performance grids, and shipping delay averages.
+
+### Essential DAX Measures
+* **Total Sales**:
+  ```dax
+  Total Sales = SUM(vw_sales_summary[sales])
+  ```
+* **Profit Margin**:
+  ```dax
+  Profit Margin = DIVIDE([Total Profit], [Total Sales], 0)
+  ```
+* **Average Order Value**:
+  ```dax
+  Average Order Value = DIVIDE([Total Sales], [Total Orders], 0)
+  ```
+
+---
+
+## 🧪 Testing and Verification
+
+Automated unit tests check data transformations and PostgreSQL schema alignments.
+* **`test_cleaning.py`**: Asserts duplicate handling, header renaming, date parsing, and type castings.
+* **`test_postgres_loader.py`**: Verifies dataframe reordering, boolean conversions, and numeric formatting.
+
+To execute the test suite:
+```bash
+python -m pytest
+```
+
+---
+
+## 🚀 How to Run the Project
+
+### 1. Ingestion & Pre-processing
+Configure a local `.env` file in the root of the project:
+```bash
+DATABASE_URL=postgresql://username:password@hostname:port/database_name?sslmode=require
+```
+
+Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+Run the pipeline and load the processed data into PostgreSQL:
+```bash
+python scripts/load_to_postgres.py --csv data/raw/superstore.csv
+```
+
+### 2. Database Migrations
+Apply database indexes and reporting views manually:
+```bash
+# Connect using psql and run:
+psql -d database_name -f sql/analytics/02_indexes.sql
+psql -d database_name -f sql/analytics/03_views.sql
+```
+Once run, connect Power BI directly to the database views to begin visualizing your dashboards!
